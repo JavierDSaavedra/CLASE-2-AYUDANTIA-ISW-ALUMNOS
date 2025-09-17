@@ -1,0 +1,53 @@
+import { AppDataSource } from "../config/configDb.js";
+import { handleSuccess } from "../Handlers/responseHandlers.js";
+import { User } from "../entities/user.entity.js";
+import bcrypt from "bcrypt";
+
+
+export function getPublicProfile(req, res) {
+  handleSuccess(res, 200, "Perfil público obtenido exitosamente", {
+    message: "¡Hola! Este es un perfil público. Cualquiera puede verlo.",
+  });
+}
+
+export function getPrivateProfile(req, res) {
+  const user = req.user;
+
+  handleSuccess(res, 200, "Perfil privado obtenido exitosamente", {
+    message: `¡Hola, ${user.email}! Este es tu perfil privado. Solo tú puedes verlo.`,
+    userData: user,
+  });
+}
+
+
+export async function updateProfile(req, res) {
+  try {
+    const userId = req.user.sub;
+    const { email, password } = req.body;
+    const userRepository = AppDataSource.getRepository(User);
+    const user = await userRepository.findOneBy({ id: userId });
+    if (!user) {
+      return handleSuccess(res, 404, "usuario no encontrado");
+    }
+    if (email) user.email = email;
+    if (password) user.password = await bcrypt.hash(password, 10);
+    await userRepository.save(user);
+    handleSuccess(res, 200, "perfil actualizado", { user });
+  } catch (error) {
+    handleSuccess(res, 500, "Eerror al actualizar", { error: error.message });
+  }
+}
+export async function deleteProfile(req, res) {
+  try {
+    const userId = req.user.sub;
+    const userRepository = AppDataSource.getRepository(User);
+    const user = await userRepository.findOneBy({ id: userId });
+    if (!user) {
+      return handleSuccess(res, 404, "usuario no encontrado");
+    }
+    await userRepository.remove(user);
+    handleSuccess(res, 200, "perfil eliminado");
+  } catch (error) {
+    handleSuccess(res, 500, "error al eliminar", { error: error.message });
+  }
+}
